@@ -1,7 +1,9 @@
 from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
-from model import db, User, Post  # Importing db and models
+from model import db, User, Post
+from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -15,12 +17,8 @@ app.config['JWT_SECRET_KEY'] = 'supersecretkey'  # Secret key for JWT
 db.init_app(app)  # Initialize the db with the app
 jwt = JWTManager(app)
 
-# Manually create tables if they do not exist (can be used for debugging)
-@app.cli.command('create_tables')
-def create_tables():
-    with app.app_context():
-        db.create_all()
-        print("Tables created successfully.")
+# Initialize Flask-Migrate
+migrate = Migrate(app, db)
 
 # User Registration Route
 @app.route('/register', methods=['POST'])
@@ -31,8 +29,8 @@ def register():
     if User.query.filter_by(username=data['username']).first():
         return jsonify({"msg": "User already exists"}), 400
 
-    # Hash the password
-    hashed_password = generate_password_hash(data['password'], method='sha256')
+    # Hash the password using pbkdf2:sha256
+    hashed_password = generate_password_hash(data['password'], method='pbkdf2:sha256')
 
     # Create a new user
     new_user = User(username=data['username'], password=hashed_password)
